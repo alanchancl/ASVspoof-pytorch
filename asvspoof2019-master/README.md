@@ -24,7 +24,7 @@ Please note that the CQCC features are computing using the Matlab code in [cqcc_
 
 Run the model on the evaluation dataset to generate a prediction file.
 ```
-python model_main.py --eval  --eval_output=RESULTS_FILE --model_path=CHECKPOINT_FILE
+python asvspoof2019-master/model_main.py --eval  --eval_output=RESULTS_FILE --model_path=CHECKPOINT_FILE
 ```
 
 Then compute the evaluation scores using on the development dataset

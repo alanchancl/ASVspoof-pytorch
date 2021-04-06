@@ -4,9 +4,9 @@ import eval_metrics as em
 import matplotlib.pyplot as plt
 
 # Replace CM scores with your own scores or provide score file as the first argument.
-cm_score_file =  'scores/output.txt' #'scores/cm_dev.txt'
+cm_score_file = 'logs/model_physical_spect_100_30_0.0001/output.txt' #'scores/cm_dev.txt'
 # Replace ASV scores with organizers' scores or provide score file as the second argument.
-asv_score_file = 'scores/asv_dev.txt'
+asv_score_file = 'logs/model_physical_spect_100_30_0.0001/asv_dev.txt'
 
 args = sys.argv
 if len(args) > 1:
@@ -106,7 +106,7 @@ plt.figure()
 plt.plot(CM_thresholds, tDCF_curve)
 plt.plot(CM_thresholds[min_tDCF_index], min_tDCF, 'o', markersize=10, mfc='none', mew=2)
 plt.xlabel('CM threshold index (operating point)')
-plt.ylabel('Norm t-DCF');
+plt.ylabel('Norm t-DCF')
 plt.title('Normalized tandem t-DCF')
 plt.plot([np.min(CM_thresholds), np.max(CM_thresholds)], [1, 1], '--', color='black')
 plt.legend(('t-DCF', 'min t-DCF ({:.9f})'.format(min_tDCF), 'Arbitrarily bad CM (Norm t-DCF=1)'))

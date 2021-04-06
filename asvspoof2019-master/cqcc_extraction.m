@@ -9,7 +9,7 @@ addpath(genpath('bosaris_toolkit'));
 addpath(genpath('tDCF_v1'));
 
 % set here the experiment to run (access and feature type)
-access_type = 'LA'; % LA for logical or PA for physical
+access_type = 'PA'; % LA for logical or PA for physical
 feature_type = 'CQCC'; % LFCC or CQCC
 
 % set paths to the wave files and protocols
@@ -29,15 +29,15 @@ feature_type = 'CQCC'; % LFCC or CQCC
 %      |- ASVspoof2019_PA_train_v1/
 
 % pathToASVspoof2019Data = '/path/to/ASVspoof_root/';
-pathToASVspoof2019Data = './';
+pathToASVspoof2019Data = './ASVSPoof2019';
 if strcmp(access_type, 'LA')
     pathToDatabase = fullfile(pathToASVspoof2019Data, 'data_logical');
 else
     pathToDatabase = fullfile(pathToASVspoof2019Data, 'data_physical');
 end
 
-trainProtocolFile = fullfile(pathToDatabase, horzcat('ASVspoof2019_', access_type, '_protocols'), horzcat('ASVspoof2019.', access_type, '.cm.train.trn.txt'));
-devProtocolFile = fullfile(pathToDatabase, horzcat('ASVspoof2019_', access_type, '_protocols'), horzcat('ASVspoof2019.', access_type, '.cm.dev.trl.txt'));
+trainProtocolFile = fullfile(pathToDatabase, horzcat('ASVspoof2019_', access_type, '_cm_protocols'), horzcat('ASVspoof2019.', access_type, '.cm.train.trn.txt'));
+devProtocolFile = fullfile(pathToDatabase, horzcat('ASVspoof2019_', access_type, '_cm_protocols'), horzcat('ASVspoof2019.', access_type, '.cm.dev.trl.txt'));
 
 %% Feature extraction for training data
 
