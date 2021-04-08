@@ -12,8 +12,8 @@ import numpy as np
 from joblib import Parallel, delayed
 import h5py
 
-LOGICAL_DATA_ROOT = r'E:\code\ASVspoof2019\ASVSPoof2019Data\LA'
-PHISYCAL_DATA_ROOT = r'E:\code\ASVspoof2019\ASVSPoof2019Data\PA'
+LOGICAL_DATA_ROOT = r'E:\code\ASVspoof\ASVSPoof2019Data\LA'
+PHISYCAL_DATA_ROOT = r'E:\code\ASVspoof\ASVSPoof2019Data\PA'
 ASVFile = collections.namedtuple(
     'ASVFile', ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
 

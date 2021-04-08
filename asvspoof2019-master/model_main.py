@@ -16,7 +16,9 @@ import torch
 from torch import nn
 from tensorboardX import SummaryWriter
 
-from models import SpectrogramModel, MFCCModel, CQCCModel
+from model.models import SpectrogramModel, MFCCModel, CQCCModel
+from model.resnet import resnet18
+from model.mobilenet_v2 import mobilenet_v2
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from sklearn.metrics import roc_curve
@@ -24,6 +26,7 @@ import logging
 import math
 import time
 import datetime
+import shutil
 
 
 def get_logger(filename, verbosity=1, name=None):
@@ -127,6 +130,8 @@ def train_epoch(data_loader, model, lr, device, logger, epoch, max_epoch):
         batch_x = batch_x.to(device)
         batch_y = batch_y.view(-1).type(torch.int64).to(device)
         batch_out = model(batch_x)
+        logsoftmax = nn.LogSoftmax(dim=1)
+        batch_out = logsoftmax(batch_out)
         batch_loss = criterion(batch_out, batch_y)
         _, batch_pred = batch_out.max(dim=1)
         num_correct += (batch_pred == batch_y).sum(dim=0).item()
@@ -172,15 +177,20 @@ if __name__ == '__main__':
                         action='store_true',
                         default=False,
                         help='eval mode')
+    parser.add_argument('--model_name',
+                        type=str,
+                        default='resnet18',
+                        help='Model Name')
     parser.add_argument('--model_path',
                         type=str,
                         default=None,
                         help='Model checkpoint')
-    parser.add_argument('--eval_output',
-                        type=str,
-                        default=None, # 'logs/model_physical_spect_100_30_0.0001/output.txt'
-                        help='Path to save the evaluation result')
-    parser.add_argument('--batch_size', type=int, default=300)
+    parser.add_argument(
+        '--eval_output',
+        type=str,
+        default=None,  # 'logs/model_physical_spect_100_30_0.0001/output.txt'
+        help='Path to save the evaluation result')
+    parser.add_argument('--batch_size', type=int, default=150)
     parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--comment',
@@ -191,14 +201,16 @@ if __name__ == '__main__':
     parser.add_argument('--features', type=str, default='mfcc')
     parser.add_argument('--is_eval', action='store_true', default=False)
     parser.add_argument('--eval_part', type=int, default=0)
+
     if not os.path.exists('models'):
         os.mkdir('models')
     args = parser.parse_args()
     track = args.track
     assert args.features in ['mfcc', 'spect', 'cqcc'], 'Not supported feature'
-    model_tag = 'model_{}_{}_{}_{}_{}'.format(track, args.features,
-                                              args.num_epochs, args.batch_size,
-                                              args.lr)
+    model_tag = 'model_{}_{}_{}_{}_{}_{}'.format(track, args.features,
+                                                 args.model_name,
+                                                 args.num_epochs,
+                                                 args.batch_size, args.lr)
     if args.comment:
         model_tag = model_tag + '_{}'.format(args.comment)
     model_save_path = os.path.join('models', model_tag)
@@ -209,17 +221,26 @@ if __name__ == '__main__':
 
     if args.features == 'mfcc':
         feature_fn = compute_mfcc_feats
-        model_cls = MFCCModel
     elif args.features == 'spect':
         feature_fn = get_log_spectrum
-        model_cls = SpectrogramModel
     elif args.features == 'cqcc':
         feature_fn = None  # cqcc feature is extracted in Matlab script
+
+    if args.model_name == 'mfcc':
+        model_cls = MFCCModel
+    elif args.model_name == 'spect':
+        model_cls = SpectrogramModel
+    elif args.model_name == 'cqcc':
         model_cls = CQCCModel
+    elif args.model_name == 'resnet18':
+        model_cls = resnet18
+    elif args.model_name == 'mobilenet_v2':
+        model_cls = mobilenet_v2
 
     transforms = transforms.Compose([
         lambda x: pad(x), lambda x: librosa.util.normalize(x),
-        lambda x: feature_fn(x), lambda x: Tensor(x)
+        lambda x: feature_fn(x), lambda x: Tensor(x),
+        transforms.Lambda(lambda x: x.repeat(3, 1, 1))
     ])
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -230,7 +251,7 @@ if __name__ == '__main__':
                                     is_eval=args.is_eval,
                                     eval_part=args.eval_part)
     dev_loader = DataLoader(dev_set, batch_size=args.batch_size, shuffle=True)
-    model = model_cls().to(device)
+    model = model_cls(num_classes=2).to(device)
     print(args)
 
     if args.model_path:
@@ -256,17 +277,23 @@ if __name__ == '__main__':
     writer = SummaryWriter('logs/{}'.format(model_tag))
     logger = get_logger('logs/{}'.format(model_tag) + '/' + 'logger.log')
     logger.info('start training!')
-    for epoch in range(num_epochs):
-        running_loss, train_accuracy = train_epoch(train_loader, model,
-                                                   args.lr, device, logger,
-                                                   epoch, num_epochs)
-        valid_accuracy = evaluate_accuracy(dev_loader, model, device)
-        writer.add_scalar('train_accuracy', train_accuracy, epoch)
-        writer.add_scalar('valid_accuracy', valid_accuracy, epoch)
-        writer.add_scalar('loss', running_loss, epoch)
-        logger.info(
-            'Epoch:{}/{} || loss:{} || TrainAccuracy:{:.2f} || TestAccuracy:{:.2f}'
-            .format(epoch, num_epochs, running_loss, train_accuracy,
-                    valid_accuracy))
-        torch.save(model.state_dict(),
-                   os.path.join(model_save_path, 'epoch_{}.pth'.format(epoch)))
+    try:
+        for epoch in range(num_epochs):
+            running_loss, train_accuracy = train_epoch(train_loader, model,
+                                                       args.lr, device, logger,
+                                                       epoch, num_epochs)
+            valid_accuracy = evaluate_accuracy(dev_loader, model, device)
+            writer.add_scalar('train_accuracy', train_accuracy, epoch)
+            writer.add_scalar('valid_accuracy', valid_accuracy, epoch)
+            writer.add_scalar('loss', running_loss, epoch)
+            logger.info(
+                'Epoch:{}/{} || loss:{} || TrainAccuracy:{:.2f} || TestAccuracy:{:.2f}'
+                .format(epoch, num_epochs, running_loss, train_accuracy,
+                        valid_accuracy))
+            torch.save(
+                model.state_dict(),
+                os.path.join(model_save_path, 'epoch_{}.pth'.format(epoch)))
+    except:
+        print('Error and Exit')
+        shutil.rmtree('logs/{}'.format(model_tag))
+        shutil.rmtree('models/{}'.format(model_tag))
