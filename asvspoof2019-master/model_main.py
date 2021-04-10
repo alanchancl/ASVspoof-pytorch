@@ -19,6 +19,7 @@ from tensorboardX import SummaryWriter
 from model.models import SpectrogramModel, MFCCModel, CQCCModel
 from model.resnet import resnet18
 from model.mobilenet_v2 import mobilenet_v2
+from model.senet import se_resnet20, se_resnet50
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from sklearn.metrics import roc_curve
@@ -190,15 +191,15 @@ if __name__ == '__main__':
         type=str,
         default=None,  # 'logs/model_physical_spect_100_30_0.0001/output.txt'
         help='Path to save the evaluation result')
-    parser.add_argument('--batch_size', type=int, default=150)
-    parser.add_argument('--num_epochs', type=int, default=200)
+    parser.add_argument('--batch_size', type=int, default=30)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--comment',
                         type=str,
                         default=None,
                         help='Comment to describe the saved mdoel')
     parser.add_argument('--track', type=str, default='physical')
-    parser.add_argument('--features', type=str, default='mfcc')
+    parser.add_argument('--features', type=str, default='spect')
     parser.add_argument('--is_eval', action='store_true', default=False)
     parser.add_argument('--eval_part', type=int, default=0)
 
@@ -236,6 +237,10 @@ if __name__ == '__main__':
         model_cls = resnet18
     elif args.model_name == 'mobilenet_v2':
         model_cls = mobilenet_v2
+    elif args.model_name == 'senet50':
+        model_cls = se_resnet50
+    elif args.model_name == 'senet20':
+        model_cls = se_resnet20
 
     transforms = transforms.Compose([
         lambda x: pad(x), lambda x: librosa.util.normalize(x),
@@ -243,13 +248,13 @@ if __name__ == '__main__':
         transforms.Lambda(lambda x: x.repeat(3, 1, 1))
     ])
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+    print(device)
     dev_set = data_utils.ASVDataset(is_train=False,
-                                    is_logical=is_logical,
-                                    transform=transforms,
-                                    feature_name=args.features,
-                                    is_eval=args.is_eval,
-                                    eval_part=args.eval_part)
+                                      is_logical=is_logical,
+                                      transform=transforms,
+                                      feature_name=args.features,
+                                      is_eval=args.is_eval,
+                                      eval_part=args.eval_part)
     dev_loader = DataLoader(dev_set, batch_size=args.batch_size, shuffle=True)
     model = model_cls(num_classes=2).to(device)
     print(args)
@@ -264,7 +269,7 @@ if __name__ == '__main__':
         produce_evaluation_file(dev_set, model, device, args.eval_output)
         sys.exit(0)
 
-    train_set = data_utils.ASVDataset(is_train=True,
+    train_set = data_utils.MyASVDataset(is_train=True,
                                       is_logical=is_logical,
                                       transform=transforms,
                                       feature_name=args.features)

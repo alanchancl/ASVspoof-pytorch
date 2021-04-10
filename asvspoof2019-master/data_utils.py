@@ -17,6 +17,103 @@ PHISYCAL_DATA_ROOT = r'E:\code\ASVspoof\ASVSPoof2019Data\PA'
 ASVFile = collections.namedtuple(
     'ASVFile', ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
 
+class MyASVDataset(Dataset):
+    def __init__(self,
+                 transform=None,
+                 is_train=True,
+                 sample_size=None,
+                 is_logical=True,
+                 feature_name=None,
+                 is_eval=False,
+                 eval_part=0):
+        if is_logical:
+            data_root = LOGICAL_DATA_ROOT
+            track = 'LA'
+        else:
+            data_root = PHISYCAL_DATA_ROOT
+            track = 'PA'
+        if is_eval:
+            data_root = os.path.join('eval_data', data_root)
+        assert feature_name is not None, 'must provide feature name'
+        self.track = track
+        self.is_logical = is_logical
+        self.prefix = 'ASVspoof2019_{}'.format(track)
+        v1_suffix = ''
+        if is_eval and track == 'PA':
+            v1_suffix = '_v1'
+        self.sysid_dict = {
+            '-': 0,  # bonafide speech
+            'A01': 1,  # Wavenet vocoder
+            'A02': 2,  # Conventional vocoder WORLD
+            'A03': 3,  # Conventional vocoder MERLIN
+            'A04': 4,  # Unit selection system MaryTTS
+            'A05': 5,  # Voice conversion using neural networks
+            'A06': 6,  # transform function-based voice conversion
+            # For PA:
+            'AA': 7,
+            'AB': 8,
+            'AC': 9,
+            'BA': 10,
+            'BB': 11,
+            'BC': 12,
+            'CA': 13,
+            'CB': 14,
+            'CC': 15
+        }
+        self.is_eval = is_eval
+        self.sysid_dict_inv = {v: k for k, v in self.sysid_dict.items()}
+        self.data_root = data_root
+        self.dset_name = 'eval' if is_eval else 'train' if is_train else 'dev'
+        self.protocols_fname = 'eval_{}.trl'.format(
+            eval_part) if is_eval else 'train.trn' if is_train else 'dev.trl'
+        self.protocols_dir = os.path.join(
+            self.data_root, '{}_cm_protocols/'.format(self.prefix))
+        self.files_dir = os.path.join(
+            self.data_root,
+            '{}_{}'.format(self.prefix, self.dset_name) + v1_suffix, 'flac')
+        self.protocols_fname = os.path.join(
+            self.protocols_dir,
+            'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
+        self.transform = transform
+        self.files_meta = self.parse_protocols_file(self.protocols_fname)
+        data = list(map(self.read_file, self.files_meta))
+        self.data_x_path, self.data_y, self.data_sysid = map(list, zip(*data))
+        self.length = len(self.data_x_path)
+        
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        x_path = self.data_x_path[idx]
+        data_x, sample_rate = sf.read(x_path)
+        x = self.transform(data_x)
+        y = self.data_y[idx]
+        return x, y, self.files_meta[idx]
+
+    def read_file(self, meta):
+        data_x_path = meta.path
+        data_y = meta.key
+        return data_x_path, float(data_y), meta.sys_id
+
+    def parse_protocols_file(self, protocols_fname):
+        lines = open(protocols_fname).readlines()
+        files_meta = map(self._parse_line, lines)
+        return list(files_meta)
+
+    def _parse_line(self, line):
+        tokens = line.strip().split(' ')
+        if self.is_eval:
+            return ASVFile(speaker_id='',
+                           file_name=tokens[0],
+                           path=os.path.join(self.files_dir,
+                                             tokens[0] + '.flac'),
+                           sys_id=0,
+                           key=0)
+        return ASVFile(speaker_id=tokens[0],
+                       file_name=tokens[1],
+                       path=os.path.join(self.files_dir, tokens[1] + '.flac'),
+                       sys_id=self.sysid_dict[tokens[3]],
+                       key=int(tokens[4] == 'bonafide'))
 
 class ASVDataset(Dataset):
     """ Utility class to load  train/dev datatsets """
