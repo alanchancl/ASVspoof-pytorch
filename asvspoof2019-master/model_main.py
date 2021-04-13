@@ -180,7 +180,7 @@ if __name__ == '__main__':
                         help='eval mode')
     parser.add_argument('--model_name',
                         type=str,
-                        default='resnet18',
+                        default='mobilenet_v2',
                         help='Model Name')
     parser.add_argument('--model_path',
                         type=str,
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         type=str,
         default=None,  # 'logs/model_physical_spect_100_30_0.0001/output.txt'
         help='Path to save the evaluation result')
-    parser.add_argument('--batch_size', type=int, default=30)
+    parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--comment',
