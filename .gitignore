@@ -14,5 +14,5 @@ data_physical
 # Caches and Models
 models
 cache_*
-
 ASVSPoof2019/
+*.json
