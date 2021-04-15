@@ -180,7 +180,7 @@ if __name__ == '__main__':
                         help='eval mode')
     parser.add_argument('--model_name',
                         type=str,
-                        default='mobilenet_v2',
+                        default='resnet18',
                         help='Model Name')
     parser.add_argument('--model_path',
                         type=str,
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         type=str,
         default=None,  # 'logs/model_physical_spect_100_30_0.0001/output.txt'
         help='Path to save the evaluation result')
-    parser.add_argument('--batch_size', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--comment',
@@ -199,7 +199,7 @@ if __name__ == '__main__':
                         default=None,
                         help='Comment to describe the saved mdoel')
     parser.add_argument('--track', type=str, default='physical')
-    parser.add_argument('--features', type=str, default='spect')
+    parser.add_argument('--features', type=str, default='cqcc')
     parser.add_argument('--is_eval', action='store_true', default=False)
     parser.add_argument('--eval_part', type=int, default=0)
 
@@ -250,11 +250,11 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
     dev_set = data_utils.ASVDataset(is_train=False,
-                                      is_logical=is_logical,
-                                      transform=transforms,
-                                      feature_name=args.features,
-                                      is_eval=args.is_eval,
-                                      eval_part=args.eval_part)
+                                    is_logical=is_logical,
+                                    transform=transforms,
+                                    feature_name=args.features,
+                                    is_eval=args.is_eval,
+                                    eval_part=args.eval_part)
     dev_loader = DataLoader(dev_set, batch_size=args.batch_size, shuffle=True)
     model = model_cls(num_classes=2).to(device)
     print(args)
@@ -269,7 +269,7 @@ if __name__ == '__main__':
         produce_evaluation_file(dev_set, model, device, args.eval_output)
         sys.exit(0)
 
-    train_set = data_utils.MyASVDataset(is_train=True,
+    train_set = data_utils.ASVDataset(is_train=True,
                                       is_logical=is_logical,
                                       transform=transforms,
                                       feature_name=args.features)

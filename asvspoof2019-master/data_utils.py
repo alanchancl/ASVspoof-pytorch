@@ -11,11 +11,12 @@ from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from joblib import Parallel, delayed
 import h5py
-
+import torchvision
 LOGICAL_DATA_ROOT = r'E:\code\ASVspoof\ASVSPoof2019Data\LA'
 PHISYCAL_DATA_ROOT = r'E:\code\ASVspoof\ASVSPoof2019Data\PA'
 ASVFile = collections.namedtuple(
     'ASVFile', ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
+
 
 class MyASVDataset(Dataset):
     def __init__(self,
@@ -79,7 +80,7 @@ class MyASVDataset(Dataset):
         data = list(map(self.read_file, self.files_meta))
         self.data_x_path, self.data_y, self.data_sysid = map(list, zip(*data))
         self.length = len(self.data_x_path)
-        
+
     def __len__(self):
         return self.length
 
@@ -115,8 +116,10 @@ class MyASVDataset(Dataset):
                        sys_id=self.sysid_dict[tokens[3]],
                        key=int(tokens[4] == 'bonafide'))
 
+
 class ASVDataset(Dataset):
     """ Utility class to load  train/dev datatsets """
+
     def __init__(self,
                  transform=None,
                  is_train=True,
@@ -189,6 +192,11 @@ class ASVDataset(Dataset):
             if os.path.exists(self.cache_matlab_fname):
                 self.data_x, self.data_y, self.data_sysid = self.read_matlab_cache(
                     self.cache_matlab_fname)
+
+                ## 增加了下面一行用来增加CFCC特征的层数
+                self.data_x = Parallel(n_jobs=4, prefer='threads')(
+                    delayed(lambda x: torch.Tensor(x).repeat(3, 1, 1))(x) for x in self.data_x)
+                
                 self.files_meta = self.parse_protocols_file(
                     self.protocols_fname)
                 print('Dataset loaded from matlab cache ',
